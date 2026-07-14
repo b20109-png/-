@@ -79,13 +79,21 @@
         }
         .notebook-area h2 { margin-top: 0; border-bottom: 1px solid #555; padding-bottom: 10px; }
         
-        /* 3. 실시간 수사 상황판 영역 (우측 고정) */
-        .scoreboard-area {
-            flex: 1; background: #1a1a1a; border: 2px solid #d4af37; padding: 20px;
-            border-radius: 5px; box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
+        /* 3. 우측 고정 영역 (상황판 + 계산기) */
+        .right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
             position: sticky; top: 20px;
         }
-        .scoreboard-area h2 { margin-top: 0; color: #d4af37; border-bottom: 1px solid #d4af37; padding-bottom: 10px; text-align: center; }
+
+        /* 실시간 수사 상황판 */
+        .scoreboard-area {
+            background: #1a1a1a; border: 2px solid #d4af37; padding: 20px;
+            border-radius: 5px; box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
+        }
+        .scoreboard-area h2 { margin-top: 0; color: #d4af37; border-bottom: 1px solid #d4af37; padding-bottom: 10px; text-align: center; font-size: 22px; }
         .score-row {
             display: flex; justify-content: space-between; padding: 12px 10px;
             border-bottom: 1px solid #333; font-size: 16px; font-weight: bold;
@@ -93,6 +101,33 @@
         .score-row span.name { color: #ffcccc; }
         .score-row span.prob { color: #888; transition: all 0.5s ease; }
         .score-row.highlight span.prob { color: #ffeb3b; text-shadow: 0 0 8px rgba(255, 235, 59, 0.6); font-size: 18px; }
+
+        /* 수사관용 계산기 스타일 */
+        .calculator-area {
+            background: #1a1a1a; border: 2px solid #8b0000; padding: 15px;
+            border-radius: 5px; box-shadow: 0 0 10px rgba(139, 0, 0, 0.2);
+        }
+        .calculator-area h2 { margin-top: 0; color: #ff5555; border-bottom: 1px solid #8b0000; padding-bottom: 10px; text-align: center; font-size: 18px; }
+        #calc-display {
+            width: 100%; height: 45px; background: #111; color: #ffeb3b; border: 1px solid #555;
+            margin-bottom: 15px; text-align: right; font-size: 20px; padding: 5px 10px; box-sizing: border-box;
+            border-radius: 3px; font-weight: bold; outline: none;
+        }
+        .calc-keys {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+        }
+        .calc-keys button {
+            background: #333; color: white; border: 1px solid #555; padding: 12px 0;
+            font-size: 16px; cursor: pointer; border-radius: 3px; transition: 0.2s; font-weight: bold;
+        }
+        .calc-keys button:hover { background: #555; }
+        .calc-keys .btn-op { background: #4a2323; color: #ffcccc; border-color: #773333; }
+        .calc-keys .btn-op:hover { background: #6b3333; }
+        .calc-keys .btn-eq { background: #d4af37; color: black; border-color: #b5952f; }
+        .calc-keys .btn-eq:hover { background: #f0c94a; }
+        .calc-keys .btn-c { background: #2b5797; border-color: #4a77b7; color: white; }
+        .calc-keys .btn-c:hover { background: #3b6ba5; }
+        .calc-keys .btn-func { background: #444; color: #ffeb3b; border-color: #666; }
 
         /* 드롭존 및 인풋 */
         .dropzone {
@@ -125,7 +160,6 @@
 
     <h1>수사 본부</h1>
 
-    <!-- 항상 상단에 표시되는 사건 브리핑 -->
     <div class="briefing-panel">
         <h2>"저택의 집주인이 살해되었습니다. 현장에는 범인의 미세한 혈흔이 남아있습니다."</h2>
         <p style="color:#aaa;">경찰 수사 브리핑</p>
@@ -134,7 +168,6 @@
         <p style="color: #ff5555; margin-top: 10px; font-size: 13px;">※ 기계가 지목했다고 해서 100% 범인인 것은 아닙니다. 4명 모두의 확률을 구해 진실을 밝혀주십시오.</p>
     </div>
 
-    <!-- 베이즈 정리 도움말 모달 -->
     <div id="help-modal" class="modal" style="display: none;">
         <div class="modal-content">
             <h3 style="color: #ffeb3b;">베이즈 정리 (Bayes' Theorem)</h3>
@@ -151,33 +184,26 @@
     </div>
     
     <div class="game-container">
-        <!-- 1. 좌측: 용의자 리스트 & 단서 -->
         <div class="suspects-area">
-            <!-- 공통 단서 -->
             <div style="grid-column: span 2;">
                 <div class="clue-card machine-clue" draggable="true" ondragstart="drag(event)" id="clue-acc">혈흔 분석기 정확도: 로딩중...</div>
                 <div class="clue-card machine-clue" draggable="true" ondragstart="drag(event)" id="clue-fp">혈흔 분석기 오작동률: 로딩중...</div>
             </div>
-
-            <!-- 용의자 1 -->
             <div class="suspect-card">
                 <h3>집사</h3>
                 <div class="story">평생을 바쳐 저택을 관리하고 온갖 갑질을 견뎌왔지만, 유언장에서 자신의 이름이 완전히 빠진 것을 알게 됨.</div>
                 <div class="clue-card" draggable="true" ondragstart="drag(event)" id="clue-butler">동기 확률: 로딩중...</div>
             </div>
-            <!-- 용의자 2 -->
             <div class="suspect-card">
                 <h3>정원사</h3>
                 <div class="story">자식처럼 아끼던 희귀 장미 정원을 집주인이 골프장을 짓겠다며 며칠 뒤 다 밀어버리겠다고 통보함.</div>
                 <div class="clue-card" draggable="true" ondragstart="drag(event)" id="clue-gardener">동기 확률: 로딩중...</div>
             </div>
-            <!-- 용의자 3 -->
             <div class="suspect-card">
                 <h3>요리사</h3>
                 <div class="story">집주인이 억지로 상한 재료를 쓰게 해놓고 식중독 사태가 터지자 모든 책임을 요리사에게 덮어씌워 해고하려 함.</div>
                 <div class="clue-card" draggable="true" ondragstart="drag(event)" id="clue-chef">동기 확률: 로딩중...</div>
             </div>
-            <!-- 용의자 4 -->
             <div class="suspect-card">
                 <h3>청소부</h3>
                 <div class="story">저택에서 자잘한 금품을 훔친 전적이 있지만, 살인과 같은 중범죄를 저지를 배짱은 부족해 보임.</div>
@@ -185,12 +211,10 @@
             </div>
         </div>
 
-        <!-- 2. 중앙: 단서 수첩 (추론 5단계) -->
         <div class="notebook-area">
             <h2>단서 수첩</h2>
             <button id="help-btn" class="btn" onclick="openHelp()">🔍 베이즈 정리 (공식 보기)</button>
             
-            <!-- 1단계 -->
             <div id="step1" class="step-container active-step">
                 <h3>[1단계] 기계 스펙 정리</h3>
                 <p>기계의 정확도와 오작동률 카드를 각각 넣으세요.</p>
@@ -200,7 +224,6 @@
                 <div id="fb1" class="feedback"></div>
             </div>
 
-            <!-- 2단계 -->
             <div id="step2" class="step-container">
                 <h3>[2단계] 용의자 사전 확률 정리</h3>
                 <p>4명의 동기 확률(기저율)을 모두 채워 넣으세요.</p>
@@ -212,7 +235,6 @@
                 <div id="fb2" class="feedback"></div>
             </div>
 
-            <!-- 3단계 -->
             <div id="step3" class="step-container">
                 <h3>[3단계] 사후 확률 계산 A</h3>
                 <p>기계가 아래 두 명을 지목했을 때, 각각 <strong>진짜 범인일 확률</strong>은 몇 %입니까? (소수점 첫째자리에서 반올림한 정수만)</p>
@@ -222,7 +244,6 @@
                 <div id="fb3" class="feedback"></div>
             </div>
 
-            <!-- 4단계 -->
             <div id="step4" class="step-container">
                 <h3>[4단계] 사후 확률 계산 B</h3>
                 <p>나머지 두 명에 대해서도 사후 확률을 계산하세요. (소수점 첫째자리에서 반올림한 정수만)</p>
@@ -232,10 +253,9 @@
                 <div id="fb4" class="feedback"></div>
             </div>
 
-            <!-- 5단계 -->
             <div id="step5" class="step-container">
                 <h3>[5단계] 최종 범인 지목</h3>
-                <p>오른쪽 수사 상황판의 최종 계산 수치를 보고, 수학적으로 가장 유력한 진범을 지목하세요.</p>
+                <p>오른쪽 수사 상황판의 최종 계산 수치를 보고, 가장 유력한 진범을 지목하세요.</p>
                 <select id="final-suspect" style="padding: 10px; background:#111; color:white; border: 1px solid #888; width: 100%; font-size: 16px; font-weight: bold;">
                     <option value="">선택하세요</option>
                     <option value="집사">집사</option>
@@ -247,37 +267,76 @@
             </div>
         </div>
 
-        <!-- 3. 우측: 실시간 수사 상황판 (상시 고정) -->
-        <div class="scoreboard-area">
-            <h2>📊 실시간 수사 상황판</h2>
-            <p style="font-size: 12px; color: #aaa; text-align: center; margin-top: -5px; margin-bottom: 20px;">분석기가 지목했을 때의 진범 확률</p>
+        <div class="right-panel">
             
-            <div class="score-row" id="row-chef">
-                <span class="name">🍳 요리사</span>
-                <span class="prob" id="score-chef">? %</span>
+            <div class="scoreboard-area">
+                <h2>📊 실시간 상황판</h2>
+                <p style="font-size: 12px; color: #aaa; text-align: center; margin-top: -5px; margin-bottom: 20px;">분석기가 지목했을 때의 진범 확률</p>
+                
+                <div class="score-row" id="row-chef">
+                    <span class="name">🍳 요리사</span>
+                    <span class="prob" id="score-chef">? %</span>
+                </div>
+                <div class="score-row" id="row-butler">
+                    <span class="name">🕴️ 집사</span>
+                    <span class="prob" id="score-butler">? %</span>
+                </div>
+                <div class="score-row" id="row-gardener">
+                    <span class="name">🌱 정원사</span>
+                    <span class="prob" id="score-gardener">? %</span>
+                </div>
+                <div class="score-row" id="row-cleaner">
+                    <span class="name">🧹 청소부</span>
+                    <span class="prob" id="score-cleaner">? %</span>
+                </div>
             </div>
-            <div class="score-row" id="row-butler">
-                <span class="name">🕴️ 집사</span>
-                <span class="prob" id="score-butler">? %</span>
+
+            <div class="calculator-area">
+                <h2>🧮 수사관용 계산기</h2>
+                <input type="text" id="calc-display" readonly>
+                <div class="calc-keys">
+                    <button class="btn-func" onclick="appendCalc('(')">(</button>
+                    <button class="btn-func" onclick="appendCalc(')')">)</button>
+                    <button class="btn-c" onclick="backspace()">←</button>
+                    <button class="btn-c" onclick="clearCalc()">C</button>
+
+                    <button onclick="appendCalc('7')">7</button>
+                    <button onclick="appendCalc('8')">8</button>
+                    <button onclick="appendCalc('9')">9</button>
+                    <button class="btn-op" onclick="appendCalc('÷')">÷</button>
+                    
+                    <button onclick="appendCalc('4')">4</button>
+                    <button onclick="appendCalc('5')">5</button>
+                    <button onclick="appendCalc('6')">6</button>
+                    <button class="btn-op" onclick="appendCalc('×')">×</button>
+                    
+                    <button onclick="appendCalc('1')">1</button>
+                    <button onclick="appendCalc('2')">2</button>
+                    <button onclick="appendCalc('3')">3</button>
+                    <button class="btn-op" onclick="appendCalc('-')">-</button>
+                    
+                    <button onclick="appendCalc('0')">0</button>
+                    <button onclick="appendCalc('.')">.</button>
+                    <button class="btn-eq" onclick="calculateResult()">=</button>
+                    <button class="btn-op" onclick="appendCalc('+')">+</button>
+                </div>
             </div>
-            <div class="score-row" id="row-gardener">
-                <span class="name">🌱 정원사</span>
-                <span class="prob" id="score-gardener">? %</span>
-            </div>
-            <div class="score-row" id="row-cleaner">
-                <span class="name">🧹 청소부</span>
-                <span class="prob" id="score-cleaner">? %</span>
-            </div>
+
         </div>
     </div>
 
     <script>
-        // 전역 변수
+        // --- 게임 전역 변수 및 로직 ---
         let acc, fp;
-        let pChef, pCleaner, pButler, pGardener;
-        let ansChef, ansButler, ansGardener, ansCleaner;
+        
+        // 동적으로 할당될 사전/사후 확률 객체
+        let priors = { chef: 0, butler: 0, gardener: 0, cleaner: 0 };
+        let posteriors = { chef: 0, butler: 0, gardener: 0, cleaner: 0 };
+        
+        // 정답 검증용 변수
+        let correctSuspectName = "";
+        let correctSuspectId = "";
 
-        // 사후 확률 계산 함수
         function getPosterior(priorPct, hitPct, falsePct) {
             let n = (priorPct / 100) * (hitPct / 100);
             let d = n + ((100 - priorPct) / 100) * (falsePct / 100);
@@ -285,33 +344,56 @@
         }
 
         window.onload = function() {
-            // 기계 확률 생성 (정확도 70~90% 사이)
+            // 기계 스펙 세팅 (정확도 70, 80, 90 중 택 1)
             acc = (Math.floor(Math.random() * 3) + 7) * 10; 
-            fp = 100 - acc; // 합이 100%
+            fp = 100 - acc; 
 
-            // 용의자 확률 생성 (합 100%)
-            pChef = (Math.floor(Math.random() * 2) + 4) * 10; // 40~50%
-            pCleaner = 10; // 10%
-            let remain = 100 - pChef - pCleaner;
-            pButler = (Math.floor(Math.random() * ((remain/10) - 1)) + 1) * 10;
-            pGardener = remain - pButler;
+            // 용의자 목록
+            const roles = [
+                { id: 'chef', name: '요리사' },
+                { id: 'butler', name: '집사' },
+                { id: 'gardener', name: '정원사' },
+                { id: 'cleaner', name: '청소부' }
+            ];
 
-            // 정답 미리 계산
-            ansChef = getPosterior(pChef, acc, fp);
-            ansButler = getPosterior(pButler, acc, fp);
-            ansGardener = getPosterior(pGardener, acc, fp);
-            ansCleaner = getPosterior(pCleaner, acc, fp);
+            // 1. 진범(가장 높은 기저율을 가질 사람) 무작위 선정
+            let culpritIndex = Math.floor(Math.random() * 4);
+            correctSuspectId = roles[culpritIndex].id;
+            correctSuspectName = roles[culpritIndex].name;
 
-            // UI 세팅
+            // 2. 확률 분배 로직 (합계 100%)
+            let remaining = 100;
+            
+            // 진범에게 50~70% 의 압도적인 사전 확률 부여
+            priors[correctSuspectId] = (Math.floor(Math.random() * 3) + 5) * 10; 
+            remaining -= priors[correctSuspectId]; 
+            
+            // 나머지 3명에게 남은 확률(30~50%) 분배 (아무도 진범의 확률을 넘지 못하게 설계)
+            let others = roles.filter((_, idx) => idx !== culpritIndex);
+            priors[others[0].id] = 10; // 최소 10% 보장
+            remaining -= 10;
+            
+            // 남은 확률을 10 단위로 무작위 쪼개기
+            priors[others[1].id] = (Math.floor(Math.random() * (remaining/10)) + 1) * 10;
+            if(priors[others[1].id] > remaining) priors[others[1].id] = remaining; // 예외 방지
+            
+            priors[others[2].id] = remaining - priors[others[1].id];
+
+            // 3. 사후 확률 미리 계산해두기
+            roles.forEach(role => {
+                posteriors[role.id] = getPosterior(priors[role.id], acc, fp);
+            });
+
+            // 화면 초기화
             document.getElementById('intro-acc').innerText = acc;
             document.getElementById('intro-fp').innerText = fp;
 
             setClue('clue-acc', acc/100, `정확도: ${acc/100}`);
             setClue('clue-fp', fp/100, `오작동률: ${fp/100}`);
-            setClue('clue-butler', pButler/100, `동기 확률: ${pButler/100}`);
-            setClue('clue-gardener', pGardener/100, `동기 확률: ${pGardener/100}`);
-            setClue('clue-chef', pChef/100, `동기 확률: ${pChef/100}`);
-            setClue('clue-cleaner', pCleaner/100, `동기 확률: ${pCleaner/100}`);
+            setClue('clue-butler', priors.butler/100, `동기 확률: ${priors.butler/100}`);
+            setClue('clue-gardener', priors.gardener/100, `동기 확률: ${priors.gardener/100}`);
+            setClue('clue-chef', priors.chef/100, `동기 확률: ${priors.chef/100}`);
+            setClue('clue-cleaner', priors.cleaner/100, `동기 확률: ${priors.cleaner/100}`);
         }
 
         function setClue(id, val, text) {
@@ -320,7 +402,6 @@
             el.innerText = text;
         }
 
-        // 모달 및 UI 로직
         function openHelp() { document.getElementById('help-modal').style.display = 'flex'; }
         function closeHelp() { document.getElementById('help-modal').style.display = 'none'; }
         function nextStep(current, next) {
@@ -328,7 +409,6 @@
             document.getElementById('step' + next).classList.add('active-step');
         }
 
-        // 드래그 앤 드롭
         function allowDrop(ev) { ev.preventDefault(); }
         function drag(ev) { ev.dataTransfer.setData("text", ev.target.getAttribute('data-val')); }
         function drop(ev) {
@@ -336,7 +416,6 @@
             ev.target.innerText = ev.dataTransfer.getData("text");
         }
 
-        // 상황판 확률 기록 및 하이라이트 함수
         function updateScoreboard(id, val) {
             let row = document.getElementById('row-' + id);
             let probSpan = document.getElementById('score-' + id);
@@ -344,7 +423,47 @@
             row.classList.add('highlight');
         }
 
-        // 1단계 검증
+        // --- 계산기 기능 스크립트 ---
+        function appendCalc(val) {
+            let display = document.getElementById('calc-display');
+            if(display.value === '수식 오류') display.value = '';
+            display.value += val;
+        }
+        
+        function clearCalc() { document.getElementById('calc-display').value = ''; }
+
+        function backspace() {
+            let display = document.getElementById('calc-display');
+            if(display.value === '수식 오류') {
+                display.value = '';
+            } else {
+                display.value = display.value.slice(0, -1);
+            }
+        }
+        
+        function calculateResult() {
+            let display = document.getElementById('calc-display');
+            if (!display.value) return;
+
+            try {
+                let expr = display.value
+                            .replace(/×/g, '*')
+                            .replace(/÷/g, '/')
+                            .replace(/(\d)\(/g, '$1*(')
+                            .replace(/\)(\d)/g, ')*$1');
+                
+                let result = eval(expr);
+                if(result !== undefined && result !== Infinity && !isNaN(result)) {
+                    display.value = Math.round(result * 100000) / 100000;
+                }
+            } catch(e) {
+                let oldVal = display.value;
+                display.value = '수식 오류';
+                setTimeout(() => { if(display.value === '수식 오류') display.value = oldVal; }, 1000);
+            }
+        }
+
+        // --- 단계별 검증 (동적 변수로 교체됨) ---
         function checkStep1() {
             let hit = parseFloat(document.getElementById('dz-hit').innerText);
             let fls = parseFloat(document.getElementById('dz-false').innerText);
@@ -355,47 +474,41 @@
             }
         }
 
-        // 2단계 검증
         function checkStep2() {
             let c = parseFloat(document.getElementById('dz-p-chef').innerText);
             let b = parseFloat(document.getElementById('dz-p-butler').innerText);
             let g = parseFloat(document.getElementById('dz-p-gardener').innerText);
             let cl = parseFloat(document.getElementById('dz-p-cleaner').innerText);
             
-            if(c === (pChef/100) && b === (pButler/100) && g === (pGardener/100) && cl === (pCleaner/100)) { 
+            // 랜덤으로 할당된 priors 객체와 비교
+            if(c === (priors.chef/100) && b === (priors.butler/100) && g === (priors.gardener/100) && cl === (priors.cleaner/100)) { 
                 nextStep(2, 3); 
             } else { 
                 document.getElementById('fb2').innerText = "4명의 동기 확률(기저율)을 정확한 위치에 드래그하세요."; 
             }
         }
 
-        // 3단계 검증
         function checkStep3() {
             let cAns = parseInt(document.getElementById('calc-chef').value);
             let bAns = parseInt(document.getElementById('calc-butler').value);
             
-            if(cAns === ansChef && bAns === ansButler) {
-                // 우측 수사 상황판에 실시간 확률 업데이트
-                updateScoreboard('chef', ansChef);
-                updateScoreboard('butler', ansButler);
-
-                alert(`통과! 요리사(${ansChef}%)와 집사(${ansButler}%)의 확률이 수사 상황판에 영구 기록되었습니다.`);
+            if(cAns === posteriors.chef && bAns === posteriors.butler) {
+                updateScoreboard('chef', posteriors.chef);
+                updateScoreboard('butler', posteriors.butler);
+                alert(`통과! 요리사(${posteriors.chef}%)와 집사(${posteriors.butler}%)의 확률이 수사 상황판에 영구 기록되었습니다.`);
                 nextStep(3, 4);
             } else {
                 document.getElementById('fb3').innerText = "계산이 틀렸습니다. 베이즈 정리 공식을 참고하여 다시 계산해보세요.";
             }
         }
 
-        // 4단계 검증
         function checkStep4() {
             let gAns = parseInt(document.getElementById('calc-gardener').value);
             let clAns = parseInt(document.getElementById('calc-cleaner').value);
             
-            if(gAns === ansGardener && clAns === ansCleaner) {
-                // 우측 수사 상황판에 실시간 확률 업데이트
-                updateScoreboard('gardener', ansGardener);
-                updateScoreboard('cleaner', ansCleaner);
-
+            if(gAns === posteriors.gardener && clAns === posteriors.cleaner) {
+                updateScoreboard('gardener', posteriors.gardener);
+                updateScoreboard('cleaner', posteriors.cleaner);
                 alert(`통과! 4명 모두의 수치가 상황판에 채워졌습니다. 이제 확실한 수학적 비교가 가능합니다!`);
                 nextStep(4, 5);
             } else {
@@ -403,12 +516,12 @@
             }
         }
 
-        // 5단계 최종 지목
         function checkStep5() {
             let suspect = document.getElementById('final-suspect').value;
-            // 요리사의 사전 확률이 가장 높으므로 사후 확률 결과 또한 늘 요리사가 가장 높음
-            if(suspect === "요리사") {
-                alert(`🎉 S랭크 탑정 달성!\n\n우측 상황판의 사후 확률 데이터(요리사: ${ansChef}%)를 토대로 진범 요리사를 완벽하게 검거했습니다.\n동기 확률(기저율)이 높은 사람일수록 동일한 기계 지목을 받았을 때의 실제 범인 확률도 압도적으로 높다는 수학적 사실을 증명하셨습니다!`);
+            
+            // 동적으로 할당된 진범(correctSuspectName)과 일치하는지 확인
+            if(suspect === correctSuspectName) {
+                alert(`🎉 S랭크 탐정 달성!\n\n우측 상황판의 사후 확률 데이터(${correctSuspectName}: ${posteriors[correctSuspectId]}%)를 토대로 진범 '${correctSuspectName}'를 완벽하게 검거했습니다.\n동기 확률(기저율)이 높은 사람일수록 동일한 기계 지목을 받았을 때의 실제 범인 확률도 압도적으로 높다는 수학적 사실을 증명하셨습니다!`);
                 location.reload();
             } else if (suspect === "") {
                 alert("범인을 선택해주세요.");
