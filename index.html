@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>저택 살인 사건: 기저율 무시의 오류</title>
+    <style>
+        /* 어두운 대저택 테마 */
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: 'Malgun Gothic', sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 { color: #8b0000; text-shadow: 2px 2px #000; margin-bottom: 10px; }
+        
+        /* 항상 떠있는 상단 사건 브리핑 패널 */
+        .briefing-panel {
+            background: #1e1e1e; padding: 20px 40px; border: 2px solid #8b0000;
+            text-align: center; max-width: 1200px; width: 100%; margin-bottom: 20px;
+            box-sizing: border-box; border-radius: 5px;
+        }
+        .briefing-panel h2 { color: #ff5555; margin-top: 0; }
+        .briefing-panel p { margin: 5px 0; font-size: 15px; }
+
+        /* 베이즈 정리 도움말 모달 */
+        .modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 100;
+        }
+        .modal-content {
+            background: #1e1e1e; padding: 40px; border: 2px solid #8b0000;
+            text-align: center; max-width: 600px; line-height: 1.6;
+        }
+        .modal-content button {
+            background: #8b0000; color: white; border: none;
+            padding: 10px 20px; cursor: pointer; font-size: 16px; margin-top: 20px;
+        }
+
+        /* 메인 3단 레이아웃 */
+        .game-container { 
+            display: flex; 
+            gap: 20px; 
+            width: 100%; 
+            max-width: 1300px; 
+            align-items: flex-start;
+        }
+        
+        /* 1. 용의자 및 단서 영역 (좌측) */
+        .suspects-area { 
+            flex: 1.8; 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 15px; 
+        }
+        .suspect-card {
+            background: #2a2a2a; border: 1px solid #444; padding: 15px; border-radius: 5px;
+        }
+        .suspect-card h3 { margin-top: 0; color: #ffcccc; }
+        .story { font-size: 13px; color: #aaa; margin-bottom: 10px; }
+        
+        /* 드래그 가능한 단서 카드 */
+        .clue-card {
+            background: #333; border: 1px dashed #888; padding: 10px;
+            text-align: center; cursor: grab; margin-bottom: 5px; font-weight: bold;
+        }
+        .clue-card:active { cursor: grabbing; }
+        .machine-clue { background: #4a2323; border-color: #ff5555; }
+
+        /* 2. 단서 수첩 영역 (중앙) */
+        .notebook-area {
+            flex: 1.2; background: #222; border: 1px solid #555; padding: 20px;
+            border-radius: 5px; box-shadow: -5px 5px 15px rgba(0,0,0,0.5);
+        }
+        .notebook-area h2 { margin-top: 0; border-bottom: 1px solid #555; padding-bottom: 10px; }
+        
+        /* 3. 실시간 수사 상황판 영역 (우측 고정) */
+        .scoreboard-area {
+            flex: 1; background: #1a1a1a; border: 2px solid #d4af37; padding: 20px;
+            border-radius: 5px; box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
+            position: sticky; top: 20px;
+        }
+        .scoreboard-area h2 { margin-top: 0; color: #d4af37; border-bottom: 1px solid #d4af37; padding-bottom: 10px; text-align: center; }
+        .score-row {
+            display: flex; justify-content: space-between; padding: 12px 10px;
+            border-bottom: 1px solid #333; font-size: 16px; font-weight: bold;
+        }
+        .score-row span.name { color: #ffcccc; }
+        .score-row span.prob { color: #888; transition: all 0.5s ease; }
+        .score-row.highlight span.prob { color: #ffeb3b; text-shadow: 0 0 8px rgba(255, 235, 59, 0.6); font-size: 18px; }
+
+        /* 드롭존 및 인풋 */
+        .dropzone {
+            display: inline-block; width: 50px; height: 25px;
+            background: #111; border: 1px solid #888; vertical-align: middle;
+            text-align: center; line-height: 25px; font-weight: bold; color: #ffeb3b;
+        }
+        .step-container { margin-bottom: 25px; display: none; }
+        .active-step { display: block; }
+        
+        .calc-row { margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        input[type="number"] {
+            width: 60px; background: #111; color: white; border: 1px solid #888;
+            padding: 5px; text-align: center; font-weight: bold;
+        }
+        
+        /* 유틸리티 */
+        .btn {
+            background: #444; color: white; border: 1px solid #666;
+            padding: 8px 15px; cursor: pointer; border-radius: 3px; margin-top: 10px;
+            width: 100%; font-weight: bold;
+        }
+        .btn:hover { background: #555; }
+        #help-btn { background: #2b5797; margin-bottom: 15px; border-color: #5a87c5; }
+        .feedback { font-size: 14px; margin-top: 10px; color: #ff9800; font-weight: bold; }
+        
+    </style>
+</head>
+<body>
+
+    <h1>수사 본부</h1>
+
+    <!-- 항상 상단에 표시되는 사건 브리핑 -->
+    <div class="briefing-panel">
+        <h2>"저택의 집주인이 살해되었습니다. 현장에는 범인의 미세한 혈흔이 남아있습니다."</h2>
+        <p style="color:#aaa;">경찰 수사 브리핑</p>
+        <p>이 기계는 범인의 혈흔을 <strong><span id="intro-acc"></span>% 확률</strong>로 정확히 찾아내지만,<br>
+        <strong><span id="intro-fp"></span>%의 확률</strong>로 엉뚱한 사람을 지목하는 치명적인 결함이 있습니다.</p>
+        <p style="color: #ff5555; margin-top: 10px; font-size: 13px;">※ 기계가 지목했다고 해서 100% 범인인 것은 아닙니다. 4명 모두의 확률을 구해 진실을 밝혀주십시오.</p>
+    </div>
+
+    <!-- 베이즈 정리 도움말 모달 -->
+    <div id="help-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3 style="color: #ffeb3b;">베이즈 정리 (Bayes' Theorem)</h3>
+            <p style="font-size: 18px;"><strong>P(A|B) = [ P(B|A) × P(A) ] / P(B)</strong></p>
+            <p style="text-align: left; font-size: 14px; color: #ccc;">
+                - <strong>P(A|B) (사후 확률):</strong> 기계가 지목했을 때, 그 사람이 진짜 범인일 확률<br>
+                - <strong>P(A) (사전 확률):</strong> 그 사람의 동기 확률 (기저율)<br>
+                - <strong>P(B|A) (기계 정확도):</strong> 범인일 때 기계가 올바르게 판정할 확률<br>
+                - <strong>P(B) (전체 확률):</strong> 기계가 그 사람을 지목할 수 있는 총 확률 <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;[ (진짜 범인 × 기계 정확도) + (범인이 아님 × 기계 오작동률) ]
+            </p>
+            <button onclick="closeHelp()">닫기</button>
+        </div>
+    </div>
+    
+    <div class="game-container">
+        <!-- 1. 좌측: 용의자 리스트 & 단서 -->
+        <div class="suspects-area">
+            <!-- 공통 단서 -->
+            <div style="grid-column: span 2;">
+                <div class="clue-card machine-clue" draggable="true" ondragstart="drag(event)" id="clue-acc">혈흔 분석기 정확도: 로딩중...</div>
+                <div class="clue-card machine-clue" draggable="true" ondragstart="drag(event)" id="clue-fp">혈흔 분석기 오작동률: 로딩중...</div>
+            </div>
+
+            <!-- 용의자 1 -->
+            <div class="suspect-card">
+                <h3>집사</h3>
+                <div class="story">평생을 바쳐 저택을 관리하고 온갖 갑질을 견뎌왔지만, 유언장에서 자신의 이름이 완전히 빠진 것을 알게 됨.</div>
+                <div class="clue-card" draggable="true" ondragstart="drag(event)" id="clue-butler">동기 확률: 로딩중...</div>
+            </div>
+            <!-- 용의자 2 -->
+            <div class="suspect-card">
+                <h3>정원사</h3>
+                <div class="story">자식처럼 아끼던 희귀 장미 정원을 집주인이 골프장을 짓겠다며 며칠 뒤 다 밀어버리겠다고 통보함.</div>
+                <div class="clue-card" draggable="true" ondragstart="drag(event)" id="clue-gardener">동기 확률: 로딩중...</div>
+            </div>
+            <!-- 용의자 3 -->
+            <div class="suspect-card">
+                <h3>요리사</h3>
+                <div class="story">집주인이 억지로 상한 재료를 쓰게 해놓고 식중독 사태가 터지자 모든 책임을 요리사에게 덮어씌워 해고하려 함.</div>
+                <div class="clue-card" draggable="true" ondragstart="drag(event)" id="clue-chef">동기 확률: 로딩중...</div>
+            </div>
+            <!-- 용의자 4 -->
+            <div class="suspect-card">
+                <h3>청소부</h3>
+                <div class="story">저택에서 자잘한 금품을 훔친 전적이 있지만, 살인과 같은 중범죄를 저지를 배짱은 부족해 보임.</div>
+                <div class="clue-card" draggable="true" ondragstart="drag(event)" id="clue-cleaner">동기 확률: 로딩중...</div>
+            </div>
+        </div>
+
+        <!-- 2. 중앙: 단서 수첩 (추론 5단계) -->
+        <div class="notebook-area">
+            <h2>단서 수첩</h2>
+            <button id="help-btn" class="btn" onclick="openHelp()">🔍 베이즈 정리 (공식 보기)</button>
+            
+            <!-- 1단계 -->
+            <div id="step1" class="step-container active-step">
+                <h3>[1단계] 기계 스펙 정리</h3>
+                <p>기계의 정확도와 오작동률 카드를 각각 넣으세요.</p>
+                <div class="calc-row"><span>정확도:</span> <span class="dropzone" ondrop="drop(event)" ondragover="allowDrop(event)" id="dz-hit"></span></div>
+                <div class="calc-row"><span>오작동:</span> <span class="dropzone" ondrop="drop(event)" ondragover="allowDrop(event)" id="dz-false"></span></div>
+                <button class="btn" onclick="checkStep1()">확인</button>
+                <div id="fb1" class="feedback"></div>
+            </div>
+
+            <!-- 2단계 -->
+            <div id="step2" class="step-container">
+                <h3>[2단계] 용의자 사전 확률 정리</h3>
+                <p>4명의 동기 확률(기저율)을 모두 채워 넣으세요.</p>
+                <div class="calc-row"><span>요리사:</span> <span class="dropzone" ondrop="drop(event)" ondragover="allowDrop(event)" id="dz-p-chef"></span></div>
+                <div class="calc-row"><span>집사:</span> <span class="dropzone" ondrop="drop(event)" ondragover="allowDrop(event)" id="dz-p-butler"></span></div>
+                <div class="calc-row"><span>정원사:</span> <span class="dropzone" ondrop="drop(event)" ondragover="allowDrop(event)" id="dz-p-gardener"></span></div>
+                <div class="calc-row"><span>청소부:</span> <span class="dropzone" ondrop="drop(event)" ondragover="allowDrop(event)" id="dz-p-cleaner"></span></div>
+                <button class="btn" onclick="checkStep2()">확인</button>
+                <div id="fb2" class="feedback"></div>
+            </div>
+
+            <!-- 3단계 -->
+            <div id="step3" class="step-container">
+                <h3>[3단계] 사후 확률 계산 A</h3>
+                <p>기계가 아래 두 명을 지목했을 때, 각각 <strong>진짜 범인일 확률</strong>은 몇 %입니까? (소수점 첫째자리에서 반올림한 정수만)</p>
+                <div class="calc-row"><span>요리사 진범 확률:</span> <span><input type="number" id="calc-chef" step="1"> %</span></div>
+                <div class="calc-row"><span>집사 진범 확률:</span> <span><input type="number" id="calc-butler" step="1"> %</span></div>
+                <button class="btn" onclick="checkStep3()">추론하기</button>
+                <div id="fb3" class="feedback"></div>
+            </div>
+
+            <!-- 4단계 -->
+            <div id="step4" class="step-container">
+                <h3>[4단계] 사후 확률 계산 B</h3>
+                <p>나머지 두 명에 대해서도 사후 확률을 계산하세요. (소수점 첫째자리에서 반올림한 정수만)</p>
+                <div class="calc-row"><span>정원사 진범 확률:</span> <span><input type="number" id="calc-gardener" step="1"> %</span></div>
+                <div class="calc-row"><span>청소부 진범 확률:</span> <span><input type="number" id="calc-cleaner" step="1"> %</span></div>
+                <button class="btn" onclick="checkStep4()">추론하기</button>
+                <div id="fb4" class="feedback"></div>
+            </div>
+
+            <!-- 5단계 -->
+            <div id="step5" class="step-container">
+                <h3>[5단계] 최종 범인 지목</h3>
+                <p>오른쪽 수사 상황판의 최종 계산 수치를 보고, 수학적으로 가장 유력한 진범을 지목하세요.</p>
+                <select id="final-suspect" style="padding: 10px; background:#111; color:white; border: 1px solid #888; width: 100%; font-size: 16px; font-weight: bold;">
+                    <option value="">선택하세요</option>
+                    <option value="집사">집사</option>
+                    <option value="정원사">정원사</option>
+                    <option value="요리사">요리사</option>
+                    <option value="청소부">청소부</option>
+                </select>
+                <button class="btn" style="background:#8b0000; margin-top: 15px; font-size: 16px;" onclick="checkStep5()">사건 종결 및 체포</button>
+            </div>
+        </div>
+
+        <!-- 3. 우측: 실시간 수사 상황판 (상시 고정) -->
+        <div class="scoreboard-area">
+            <h2>📊 실시간 수사 상황판</h2>
+            <p style="font-size: 12px; color: #aaa; text-align: center; margin-top: -5px; margin-bottom: 20px;">분석기가 지목했을 때의 진범 확률</p>
+            
+            <div class="score-row" id="row-chef">
+                <span class="name">🍳 요리사</span>
+                <span class="prob" id="score-chef">? %</span>
+            </div>
+            <div class="score-row" id="row-butler">
+                <span class="name">🕴️ 집사</span>
+                <span class="prob" id="score-butler">? %</span>
+            </div>
+            <div class="score-row" id="row-gardener">
+                <span class="name">🌱 정원사</span>
+                <span class="prob" id="score-gardener">? %</span>
+            </div>
+            <div class="score-row" id="row-cleaner">
+                <span class="name">🧹 청소부</span>
+                <span class="prob" id="score-cleaner">? %</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 전역 변수
+        let acc, fp;
+        let pChef, pCleaner, pButler, pGardener;
+        let ansChef, ansButler, ansGardener, ansCleaner;
+
+        // 사후 확률 계산 함수
+        function getPosterior(priorPct, hitPct, falsePct) {
+            let n = (priorPct / 100) * (hitPct / 100);
+            let d = n + ((100 - priorPct) / 100) * (falsePct / 100);
+            return Math.round((n / d) * 100);
+        }
+
+        window.onload = function() {
+            // 기계 확률 생성 (정확도 70~90% 사이)
+            acc = (Math.floor(Math.random() * 3) + 7) * 10; 
+            fp = 100 - acc; // 합이 100%
+
+            // 용의자 확률 생성 (합 100%)
+            pChef = (Math.floor(Math.random() * 2) + 4) * 10; // 40~50%
+            pCleaner = 10; // 10%
+            let remain = 100 - pChef - pCleaner;
+            pButler = (Math.floor(Math.random() * ((remain/10) - 1)) + 1) * 10;
+            pGardener = remain - pButler;
+
+            // 정답 미리 계산
+            ansChef = getPosterior(pChef, acc, fp);
+            ansButler = getPosterior(pButler, acc, fp);
+            ansGardener = getPosterior(pGardener, acc, fp);
+            ansCleaner = getPosterior(pCleaner, acc, fp);
+
+            // UI 세팅
+            document.getElementById('intro-acc').innerText = acc;
+            document.getElementById('intro-fp').innerText = fp;
+
+            setClue('clue-acc', acc/100, `정확도: ${acc/100}`);
+            setClue('clue-fp', fp/100, `오작동률: ${fp/100}`);
+            setClue('clue-butler', pButler/100, `동기 확률: ${pButler/100}`);
+            setClue('clue-gardener', pGardener/100, `동기 확률: ${pGardener/100}`);
+            setClue('clue-chef', pChef/100, `동기 확률: ${pChef/100}`);
+            setClue('clue-cleaner', pCleaner/100, `동기 확률: ${pCleaner/100}`);
+        }
+
+        function setClue(id, val, text) {
+            let el = document.getElementById(id);
+            el.setAttribute('data-val', val);
+            el.innerText = text;
+        }
+
+        // 모달 및 UI 로직
+        function openHelp() { document.getElementById('help-modal').style.display = 'flex'; }
+        function closeHelp() { document.getElementById('help-modal').style.display = 'none'; }
+        function nextStep(current, next) {
+            document.getElementById('step' + current).classList.remove('active-step');
+            document.getElementById('step' + next).classList.add('active-step');
+        }
+
+        // 드래그 앤 드롭
+        function allowDrop(ev) { ev.preventDefault(); }
+        function drag(ev) { ev.dataTransfer.setData("text", ev.target.getAttribute('data-val')); }
+        function drop(ev) {
+            ev.preventDefault();
+            ev.target.innerText = ev.dataTransfer.getData("text");
+        }
+
+        // 상황판 확률 기록 및 하이라이트 함수
+        function updateScoreboard(id, val) {
+            let row = document.getElementById('row-' + id);
+            let probSpan = document.getElementById('score-' + id);
+            probSpan.innerText = val + " %";
+            row.classList.add('highlight');
+        }
+
+        // 1단계 검증
+        function checkStep1() {
+            let hit = parseFloat(document.getElementById('dz-hit').innerText);
+            let fls = parseFloat(document.getElementById('dz-false').innerText);
+            if(hit === (acc / 100) && fls === (fp / 100)) { 
+                nextStep(1, 2); 
+            } else { 
+                document.getElementById('fb1').innerText = "기계의 정확도와 오작동률 수치를 맞게 넣었는지 확인하세요."; 
+            }
+        }
+
+        // 2단계 검증
+        function checkStep2() {
+            let c = parseFloat(document.getElementById('dz-p-chef').innerText);
+            let b = parseFloat(document.getElementById('dz-p-butler').innerText);
+            let g = parseFloat(document.getElementById('dz-p-gardener').innerText);
+            let cl = parseFloat(document.getElementById('dz-p-cleaner').innerText);
+            
+            if(c === (pChef/100) && b === (pButler/100) && g === (pGardener/100) && cl === (pCleaner/100)) { 
+                nextStep(2, 3); 
+            } else { 
+                document.getElementById('fb2').innerText = "4명의 동기 확률(기저율)을 정확한 위치에 드래그하세요."; 
+            }
+        }
+
+        // 3단계 검증
+        function checkStep3() {
+            let cAns = parseInt(document.getElementById('calc-chef').value);
+            let bAns = parseInt(document.getElementById('calc-butler').value);
+            
+            if(cAns === ansChef && bAns === ansButler) {
+                // 우측 수사 상황판에 실시간 확률 업데이트
+                updateScoreboard('chef', ansChef);
+                updateScoreboard('butler', ansButler);
+
+                alert(`통과! 요리사(${ansChef}%)와 집사(${ansButler}%)의 확률이 수사 상황판에 영구 기록되었습니다.`);
+                nextStep(3, 4);
+            } else {
+                document.getElementById('fb3').innerText = "계산이 틀렸습니다. 베이즈 정리 공식을 참고하여 다시 계산해보세요.";
+            }
+        }
+
+        // 4단계 검증
+        function checkStep4() {
+            let gAns = parseInt(document.getElementById('calc-gardener').value);
+            let clAns = parseInt(document.getElementById('calc-cleaner').value);
+            
+            if(gAns === ansGardener && clAns === ansCleaner) {
+                // 우측 수사 상황판에 실시간 확률 업데이트
+                updateScoreboard('gardener', ansGardener);
+                updateScoreboard('cleaner', ansCleaner);
+
+                alert(`통과! 4명 모두의 수치가 상황판에 채워졌습니다. 이제 확실한 수학적 비교가 가능합니다!`);
+                nextStep(4, 5);
+            } else {
+                document.getElementById('fb4').innerText = "계산이 틀렸습니다. 각자의 사전 확률(P(A))을 대입해 다시 계산하세요.";
+            }
+        }
+
+        // 5단계 최종 지목
+        function checkStep5() {
+            let suspect = document.getElementById('final-suspect').value;
+            // 요리사의 사전 확률이 가장 높으므로 사후 확률 결과 또한 늘 요리사가 가장 높음
+            if(suspect === "요리사") {
+                alert(`🎉 S랭크 탑정 달성!\n\n우측 상황판의 사후 확률 데이터(요리사: ${ansChef}%)를 토대로 진범 요리사를 완벽하게 검거했습니다.\n동기 확률(기저율)이 높은 사람일수록 동일한 기계 지목을 받았을 때의 실제 범인 확률도 압도적으로 높다는 수학적 사실을 증명하셨습니다!`);
+                location.reload();
+            } else if (suspect === "") {
+                alert("범인을 선택해주세요.");
+            } else {
+                alert("오답입니다! 우측 수사 상황판에서 '최종 사후 확률이 가장 높게 기록된' 사람을 찾아보세요.");
+            }
+        }
+    </script>
+</body>
+</html>
